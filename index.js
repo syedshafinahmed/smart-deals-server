@@ -5,14 +5,31 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 const port = process.env.PORT || 3000;
 console.log(process.env);
+
 // middleware
 app.use(cors());
 app.use(express.json());
 
-// const uri =
-//   "mongodb+srv://smartdbUser:mGti9OC6mBfUYXr3@zyra.l75hwjs.mongodb.net/?appName=Zyra";
-const uri =
-  `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@zyra.l75hwjs.mongodb.net/?appName=Zyra`;
+const logger = (req, res, next) => {
+  console.log("logging info");
+  next();
+};
+
+const verifyFireBaseToken = (req, res, next) => {
+  console.log("in the verify middleware", req.headers.authorization);
+  if (!req.headers.authorization) {
+    // do not allow
+    return req.status(401).send({ message: "Unauthorized Access" });
+  }
+  const token = req.headers.authorization.split(" ")[1];
+  if (!token) {
+    return res.status(401).send({ message: "Unauthorized Access" });
+  }
+  // verify token
+  next();
+};
+
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@zyra.l75hwjs.mongodb.net/?appName=Zyra`;
 
 const client = new MongoClient(uri, {
   serverApi: {
@@ -126,7 +143,8 @@ async function run() {
     });
 
     // bids related APIs
-    app.get("/bids", async (req, res) => {
+    app.get("/bids", logger, verifyFireBaseToken, async (req, res) => {
+      // console.log("headers", req.headers);
       const email = req.query.email;
       const query = {};
       if (email) {
@@ -145,15 +163,15 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/bids", async (req, res) => {
-      const query = {};
-      if (query.email) {
-        query.buyer_email = email;
-      }
-      const cursor = bidsCollection.find(query);
-      const result = await cursor.toArray();
-      res.send(result);
-    });
+    // app.get("/bids", async (req, res) => {
+    //   const query = {};
+    //   if (query.email) {
+    //     query.buyer_email = email;
+    //   }
+    //   const cursor = bidsCollection.find(query);
+    //   const result = await cursor.toArray();
+    //   res.send(result);
+    // });
 
     app.post("/bids", async (req, res) => {
       const newBid = req.body;
