@@ -36,6 +36,7 @@ const verifyFireBaseToken = async (req, res, next) => {
   // verify id token
   try {
     const userInfo = await admin.auth().verifyIdToken(token);
+    req.token_email = userInfo.email;
     console.log("after token verification", userInfo);
     next();
   } catch {
@@ -162,6 +163,10 @@ async function run() {
       const email = req.query.email;
       const query = {};
       if (email) {
+        if (email !== req.token_email) {
+          return res.status(403).send({ message: "Forbidden Access" });
+        }
+
         query.buyer_email = email;
       }
       const cursor = bidsCollection.find(query);
@@ -169,13 +174,17 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/products/bids/:productId", async (req, res) => {
-      const productId = req.params.productId;
-      const query = { product: productId };
-      const cursor = bidsCollection.find(query).sort({ bid_price: -1 });
-      const result = await cursor.toArray();
-      res.send(result);
-    });
+    app.get(
+      "/products/bids/:productId",
+      verifyFireBaseToken,
+      async (req, res) => {
+        const productId = req.params.productId;
+        const query = { product: productId };
+        const cursor = bidsCollection.find(query).sort({ bid_price: -1 });
+        const result = await cursor.toArray();
+        res.send(result);
+      }
+    );
 
     // app.get("/bids", async (req, res) => {
     //   const query = {};
